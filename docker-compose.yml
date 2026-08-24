@@ -1,0 +1,48 @@
+# ThermalEdge -- full stack.
+#
+#   docker compose up --build
+#   -> dashboard      http://localhost:8000
+#   -> control API    http://localhost:8090/docs
+#
+# The collector reaches the simulator over Modbus TCP by service name. It has no
+# knowledge that the equipment is simulated; swapping in real hardware means
+# changing the device inventory, nothing else.
+
+services:
+  simulator:
+    build: .
+    image: thermaledge:latest
+    command: python -m sim.main
+    ports:
+      - "8090:8090"        # control API (the test fixture)
+      - "5020-5023:5020-5023"   # CRV Modbus TCP
+      - "5030-5031:5030-5031"   # CDU Modbus TCP
+      - "5040:5040"             # rack PDU gateway, addressed by unit id
+    healthcheck:
+      test: ["CMD", "python", "-c",
+             "import urllib.request; urllib.request.urlopen('http://localhost:8090/admin/health')"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 5s
+    restart: unless-stopped
+
+  api:
+    build: .
+    image: thermaledge:latest
+    command: python -m api.main
+    environment:
+      THERMALEDGE_DEVICE_HOST: simulator
+    ports:
+      - "8000:8000"        # dashboard + telemetry API
+    depends_on:
+      simulator:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c",
+             "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 10s
+    restart: unless-stopped

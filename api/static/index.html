@@ -1,0 +1,597 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ThermalEdge — Data Center Thermal Monitor</title>
+<style>
+  :root{
+    --bg:#0d1117; --panel:#161b22; --panel2:#1c2230; --line:#2a3140;
+    --txt:#e6edf3; --dim:#8b949e; --accent:#58a6ff;
+    --ok:#3fb950; --warn:#d29922; --crit:#f85149;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--txt);
+       font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+  header{display:flex;align-items:center;gap:16px;padding:12px 20px;
+         border-bottom:1px solid var(--line);background:var(--panel);
+         position:sticky;top:0;z-index:20;flex-wrap:wrap}
+  h1{font-size:15px;margin:0;letter-spacing:.3px;font-weight:600}
+  h1 span{color:var(--dim);font-weight:400}
+  .tiles{display:flex;gap:10px;margin-left:auto;flex-wrap:wrap}
+  .tile{background:var(--panel2);border:1px solid var(--line);border-radius:8px;
+        padding:6px 12px;min-width:96px}
+  .tile .k{font-size:10px;text-transform:uppercase;letter-spacing:.6px;color:var(--dim)}
+  .tile .v{font-family:var(--mono);font-size:17px;font-weight:600}
+  .dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:6px}
+  .layout{display:grid;grid-template-columns:minmax(0,1fr) 400px;align-items:start}
+  main{padding:18px 20px 40px;min-width:0}
+  section{margin-bottom:22px}
+  .shead{display:flex;align-items:center;gap:12px;margin-bottom:10px;flex-wrap:wrap}
+  .shead h2{font-size:12px;text-transform:uppercase;letter-spacing:.8px;
+            color:var(--dim);margin:0;font-weight:600}
+  .seg{display:flex;gap:2px;background:var(--panel2);border:1px solid var(--line);
+       border-radius:7px;padding:2px}
+  .seg button{background:none;border:0;color:var(--dim);padding:4px 11px;border-radius:5px;
+              font-size:12px;cursor:pointer;font-family:inherit}
+  .seg button.on{background:var(--accent);color:#04121f;font-weight:600}
+  .row-label{font-family:var(--mono);font-size:11px;color:var(--dim);
+             width:16px;flex-shrink:0;padding-top:42px}
+  .rowwrap{display:flex;gap:8px;align-items:flex-start;margin-bottom:14px}
+  .blocks{display:grid;grid-template-columns:1fr 1fr;gap:22px;flex:1}
+  .grid6{display:grid;grid-template-columns:repeat(6,1fr);gap:6px}
+  .bhead{display:flex;gap:6px;align-items:center;margin-bottom:6px;
+         font-family:var(--mono);font-size:9.5px;letter-spacing:.05em;color:var(--dim)}
+  .bhead .zone{border:1px solid var(--line);border-radius:3px;padding:1px 6px;
+               background:var(--panel2)}
+  .bhead .zone b{color:var(--txt);font-weight:600}
+  .bhead .zone.liq{border-color:#2c6e8f}
+  .bhead .zone.liq b{color:#6fb4d4}
+  .bhead .span{margin-left:auto;opacity:.75}
+  .rack{background:var(--panel);border:1px solid var(--line);border-radius:7px;
+        padding:8px 6px;cursor:pointer;transition:transform .08s;position:relative;
+        border-left:3px solid var(--c)}
+  .rack:hover{transform:translateY(-2px);border-color:var(--accent)}
+  .rack .rid{font-family:var(--mono);font-size:9.5px;color:var(--dim)}
+  .rack .rv{font-family:var(--mono);font-size:16px;font-weight:600;color:var(--c)}
+  .rack .ru{font-size:9px;color:var(--dim)}
+  .rack .bar{height:3px;background:var(--line);border-radius:2px;margin-top:5px;overflow:hidden}
+  .rack .bar i{display:block;height:100%;background:var(--c);width:var(--w)}
+  .rack.alarm{box-shadow:0 0 0 1px var(--crit) inset}
+  .rack.off{opacity:.35}
+  .badge{position:absolute;top:4px;right:5px;font-size:8px;padding:1px 4px;
+         border-radius:3px;background:var(--crit);color:#fff;font-weight:700}
+  .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:11px 13px}
+  .card h3{margin:0 0 8px;font-size:12px;font-family:var(--mono);display:flex;
+           align-items:center;justify-content:space-between}
+  .kv{display:flex;justify-content:space-between;font-size:11.5px;padding:2px 0}
+  .kv span:first-child{color:var(--dim)}
+  .kv span:last-child{font-family:var(--mono)}
+  .alarms{background:var(--panel);border:1px solid var(--line);border-radius:8px;
+          padding:10px 13px;max-height:150px;overflow:auto}
+  .al{display:flex;gap:10px;font-size:11.5px;padding:3px 0;font-family:var(--mono)}
+  .al b{color:var(--crit);font-weight:600}
+  .al.w b{color:var(--warn)}
+  /* control panel */
+  #ctl{background:var(--panel);border-left:1px solid var(--line);
+       position:sticky;top:var(--hh,72px);height:calc(100vh - var(--hh,72px));
+       display:flex;flex-direction:column}
+  #ctlhead{padding:11px 16px;border-bottom:1px solid var(--line);background:var(--panel2)}
+  #ctlhead h2{margin:0;font-size:12px;text-transform:uppercase;letter-spacing:.8px}
+  #ctlhead p{margin:5px 0 0;font-size:10.5px;color:var(--dim);line-height:1.45}
+  #ctlbody{overflow-y:auto;padding:14px 16px;flex:1}
+  .grp{font-size:11px;letter-spacing:.8px;color:var(--dim);margin:0 0 3px;font-weight:600}
+  @media (max-width:1150px){
+    .layout{grid-template-columns:1fr}
+    #ctl{position:static;height:auto;border-left:0;border-top:1px solid var(--line)}
+  }
+  .fld{margin-bottom:14px}
+  .fld label{display:flex;justify-content:space-between;font-size:11px;
+             color:var(--dim);margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px}
+  .fld label b{color:var(--txt);font-family:var(--mono);font-size:12px}
+  input[type=range]{width:100%;accent-color:var(--accent)}
+  select{width:100%;background:var(--panel2);color:var(--txt);border:1px solid var(--line);
+         border-radius:6px;padding:6px;font-family:inherit;font-size:12px}
+  .btns{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+  .btns.three{grid-template-columns:1fr 1fr 1fr}
+  button.act{background:var(--panel2);border:1px solid var(--line);color:var(--txt);
+             border-radius:6px;padding:7px;cursor:pointer;font-size:11.5px;font-family:inherit}
+  button.act:hover{border-color:var(--accent);color:var(--accent)}
+  button.act.danger:hover{border-color:var(--crit);color:var(--crit)}
+  button.act.primary{background:var(--accent);color:#04121f;font-weight:700;border-color:var(--accent)}
+  .hint{font-size:10.5px;color:var(--dim);margin:-6px 0 12px;line-height:1.4}
+  .fgrp{border:1px solid var(--line);border-radius:8px;padding:11px 12px;margin-bottom:10px;
+        background:var(--panel2)}
+  .fgrp .ftitle{font-size:11.5px;font-weight:600;margin:0 0 1px}
+  .fgrp .fsub{font-family:var(--mono);font-size:9.5px;color:var(--dim);margin:0 0 9px;
+              letter-spacing:.04em;text-transform:uppercase}
+  .fgrp .fld{margin-bottom:9px}
+  .fgrp .fdesc{font-size:10px;color:var(--dim);line-height:1.4;margin:0 0 9px}
+  .fgrp.physics{border-left:2px solid var(--crit)}
+  .fgrp.comms{border-left:2px solid var(--warn)}
+  input[type=number]{width:100%;background:var(--panel);color:var(--txt);
+    border:1px solid var(--line);border-radius:6px;padding:6px;font-family:var(--mono);font-size:12px}
+  .afault{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:10.5px;
+          padding:5px 8px;border:1px solid var(--line);border-radius:6px;margin-bottom:5px;
+          background:var(--panel2)}
+  .afault .x{margin-left:auto;cursor:pointer;color:var(--dim);border:0;background:none;
+             font-size:13px;padding:0 3px;font-family:inherit}
+  .afault .x:hover{color:var(--crit)}
+  .afault .tag{font-size:8.5px;padding:1px 5px;border-radius:3px;border:1px solid var(--line);
+               color:var(--dim);text-transform:uppercase;letter-spacing:.05em}
+  hr{border:0;border-top:1px solid var(--line);margin:16px 0}
+  #detail{position:fixed;inset:0;background:#000b;display:none;align-items:center;
+          justify-content:center;z-index:40}
+  #detail.open{display:flex}
+  #detail .card{width:min(560px,92vw);max-height:80vh;overflow:auto}
+  .legend{display:flex;gap:10px;align-items:center;font-size:10px;color:var(--dim);
+          font-family:var(--mono)}
+  .legend i{width:34px;height:8px;border-radius:2px;display:inline-block}
+</style>
+</head>
+<body>
+<header>
+  <h1>ThermalEdge <span>· Houston · row A liquid / row B air</span></h1>
+  <div class="tiles">
+    <div class="tile"><div class="k">IT Load</div><div class="v" id="t-it">—</div></div>
+    <div class="tile"><div class="k">Cooling</div><div class="v" id="t-cool">—</div></div>
+    <div class="tile"><div class="k">PUE</div><div class="v" id="t-pue">—</div></div>
+    <div class="tile"><div class="k">Max Inlet</div><div class="v" id="t-max">—</div></div>
+    <div class="tile"><div class="k">Alarms</div><div class="v" id="t-alarm">—</div></div>
+    <div class="tile"><div class="k">Link</div><div class="v" style="font-size:12px">
+      <span class="dot" id="t-dot"></span><span id="t-link">…</span></div></div>
+  </div>
+</header>
+
+<div class="layout">
+<main>
+  <section>
+    <div class="shead">
+      <h2>Rack Map</h2>
+      <div class="seg" id="metric">
+        <button data-m="inlet_temp" class="on">Inlet °C</button>
+        <button data-m="outlet_temp">Outlet °C</button>
+        <button data-m="total_power">Power kW</button>
+        <button data-m="gpu_utilization">GPU %</button>
+        <button data-m="cpu_utilization">CPU %</button>
+      </div>
+      <div class="legend"><span id="lg-lo">—</span><i id="lg-bar"></i><span id="lg-hi">—</span></div>
+    </div>
+    <div class="rowwrap"><div class="row-label">A</div><div class="blocks" id="rowA"></div></div>
+    <div class="rowwrap"><div class="row-label">B</div><div class="blocks" id="rowB"></div></div>
+  </section>
+
+  <section>
+    <div class="shead"><h2>Coolant Distribution Units</h2></div>
+    <div class="cards" id="cdus"></div>
+  </section>
+
+  <section>
+    <div class="shead"><h2>In-Row Cooling Units</h2></div>
+    <div class="cards" id="crvs"></div>
+  </section>
+
+  <section id="idsec" style="display:none">
+    <div class="shead"><h2>Device Identity Events</h2></div>
+    <div class="alarms" id="identity"></div>
+  </section>
+
+  <section>
+    <div class="shead"><h2>Active Alarms</h2></div>
+    <div class="alarms" id="alarms"></div>
+  </section>
+</main>
+
+<aside id="ctl">
+  <div id="ctlhead">
+    <h2>Simulation Control</h2>
+    <p>These controls call the simulator's API on <b>:8090</b> and change the
+      <b>physics</b>. They never write to the dashboard. The collector then reads
+      the consequences over Modbus, so what you see on the left is the effect
+      arriving back through the real pipeline 1–3 s later.</p>
+  </div>
+  <div id="ctlbody">
+    <p class="grp">SERVER LOAD</p>
+    <div class="hint">Sets <i>requested</i> utilization. Chain: utilization →
+      power (non-linear, idle is not zero) → heat → coolant and air loops →
+      temperature. Temperature lags by <b>minutes</b> — racks have thermal mass,
+      so watch it climb rather than jump.</div>
+    <div class="fld">
+      <label>Target <select id="target">
+        <option value="rows:A">Row A — GPU racks (liquid)</option>
+        <option value="rows:B">Row B — CPU racks (air)</option>
+        <option value="all">All 24 racks</option>
+        <option value="racks:RACK-A03">RACK-A03 only</option>
+        <option value="racks:RACK-A03,RACK-A04,RACK-A05">RACK-A03…A05 (hot spot)</option>
+      </select></label>
+    </div>
+    <div class="fld">
+      <label>CPU utilization <b id="v-cpu">50%</b></label>
+      <input type="range" id="cpu" min="0" max="100" value="50">
+    </div>
+    <div class="fld">
+      <label>GPU utilization <b id="v-gpu">60%</b></label>
+      <input type="range" id="gpu" min="0" max="100" value="60">
+    </div>
+    <div class="btns"><button class="act primary" onclick="applyLoad()">Apply Load</button>
+      <button class="act" onclick="releaseLoad()">Release (auto)</button></div>
+
+    <div class="hint" style="margin-top:8px">Apply pins the racks at that level.
+      Release hands them back to the automatic baseline.</div>
+
+    <hr>
+    <p class="grp">SCENARIOS</p>
+    <div class="hint">Presets applied to all 24 racks. <b>Overload</b> drives the
+      floor past design cooling capacity; <b>Hot spot</b> loads only A03–A05, so
+      you can watch neighbouring racks warm through recirculation.</div>
+    <div class="btns three" style="margin-bottom:6px">
+      <button class="act" onclick="scenario(10,5)">Idle</button>
+      <button class="act" onclick="scenario(45,55)">Normal</button>
+      <button class="act" onclick="scenario(75,88)">Heavy</button>
+    </div>
+    <div class="btns">
+      <button class="act danger" onclick="scenario(100,100)">⚠ Overload all racks</button>
+      <button class="act danger" onclick="hotspot()">⚠ Hot spot A03–A05</button>
+    </div>
+
+    <hr>
+    <p class="grp">EQUIPMENT FAULTS</p>
+    <div class="hint">Faults are grouped by what they can actually affect. Pump and
+      fan faults break the <b>physics</b> — heat stops leaving. Communication faults
+      leave the equipment healthy and break only your <b>view</b> of it.</div>
+    <div id="faultgroups"></div>
+    <hr style="margin:14px 0">
+    <p class="grp">ACTIVE FAULTS</p>
+    <div id="activef"></div>
+    <button class="act" style="width:100%;margin-top:8px" onclick="clearFaults()">Clear All Faults</button>
+
+    <hr>
+    <p class="grp">ENVIRONMENT</p>
+    <div class="fld">
+      <label>Room humidity <b id="v-rh">auto</b></label>
+      <input type="range" id="rh" min="20" max="99" value="45">
+    </div>
+    <div class="hint">Push humidity high and the CDU is forced to raise coolant
+      supply temperature to stay above the dew point — cooling capacity falls
+      with no equipment fault anywhere.</div>
+    <div class="btns"><button class="act" onclick="setRh()">Apply Humidity</button>
+      <button class="act" onclick="autoRh()">Auto</button></div>
+
+    <hr>
+    <p class="grp">TIME</p>
+    <div class="hint">Speeds up the simulation clock so slow thermal responses
+      play out in seconds. Polling cadence stays real-time.</div>
+    <div class="btns three">
+      <button class="act" onclick="setClock(1)">1×</button>
+      <button class="act" onclick="setClock(10)">10×</button>
+      <button class="act" onclick="setClock(30)">30×</button>
+    </div>
+    <hr>
+    <button class="act" style="width:100%" onclick="resetAll()">Reset Everything</button>
+    <div class="hint" style="margin-top:10px">Reset releases all pinned load,
+      clears every fault, returns humidity to automatic and the clock to 1×.</div>
+  </div>
+</aside>
+</div>
+
+<div id="detail" onclick="if(event.target.id==='detail')this.classList.remove('open')">
+  <div class="card" id="detailbody"></div>
+</div>
+
+<script>
+const CTL = "http://" + location.hostname + ":8090";
+let snap = null, metric = "inlet_temp", lastMsg = 0;
+
+const SCALES = {
+  inlet_temp:      {lo:16, hi:40, unit:"°C", dec:1},
+  outlet_temp:     {lo:20, hi:60, unit:"°C", dec:1},
+  total_power:     {lo:0,  hi:40, unit:"kW", dec:1},
+  gpu_utilization: {lo:0,  hi:100,unit:"%",  dec:0},
+  cpu_utilization: {lo:0,  hi:100,unit:"%",  dec:0},
+};
+
+function ramp(t){                       // 0..1 -> blue→green→yellow→red
+  t = Math.max(0, Math.min(1, t));
+  const stops = [[0,[56,110,190]],[.35,[63,185,80]],[.6,[210,153,34]],[.82,[240,120,50]],[1,[248,81,73]]];
+  for(let i=0;i<stops.length-1;i++){
+    const [a,ca]=stops[i],[b,cb]=stops[i+1];
+    if(t<=b){const f=(t-a)/(b-a);
+      return `rgb(${ca.map((c,j)=>Math.round(c+(cb[j]-c)*f)).join(",")})`;}
+  }
+  return "rgb(248,81,73)";
+}
+const fmt=(v,d)=>v==null||isNaN(v)?"—":Number(v).toFixed(d);
+
+function connect(){
+  const ws = new WebSocket(`ws://${location.host}/ws/telemetry`);
+  ws.onopen  = ()=>setLink(true);
+  ws.onclose = ()=>{setLink(false); setTimeout(connect,1500);};
+  ws.onerror = ()=>ws.close();
+  ws.onmessage = e => { snap = JSON.parse(e.data); lastMsg = Date.now(); render(); };
+}
+function setLink(up){
+  document.getElementById("t-dot").style.background = up ? "var(--ok)" : "var(--crit)";
+  document.getElementById("t-link").textContent = up ? "live" : "down";
+}
+setInterval(()=>{ if(lastMsg && Date.now()-lastMsg > 4000) setLink(false); },1000);
+
+function render(){
+  if(!snap) return;
+  const s = snap.summary;
+  document.getElementById("t-it").textContent   = s.it_kw + " kW";
+  document.getElementById("t-cool").textContent = s.cooling_kw + " kW";
+  document.getElementById("t-pue").textContent  = s.pue ? s.pue.toFixed(2) : "—";
+  const inlets = snap.racks.map(r=>r.inlet_temp).filter(v=>v!=null);
+  document.getElementById("t-max").textContent = inlets.length ? fmt(Math.max(...inlets),1)+" °C" : "—";
+  const al = document.getElementById("t-alarm");
+  al.textContent = s.alarm_count;
+  al.style.color = s.alarm_count ? "var(--crit)" : "var(--ok)";
+
+  const sc = SCALES[metric];
+  document.getElementById("lg-lo").textContent = sc.lo + sc.unit;
+  document.getElementById("lg-hi").textContent = sc.hi + sc.unit;
+  document.getElementById("lg-bar").style.background =
+    `linear-gradient(90deg,${ramp(0)},${ramp(.35)},${ramp(.6)},${ramp(.85)},${ramp(1)})`;
+
+  for(const row of ["A","B"]) renderRow(row, sc);
+  document.getElementById("cdus").innerHTML = snap.cdus.map(cduCard).join("");
+  document.getElementById("crvs").innerHTML = snap.crvs.map(crvCard).join("");
+
+  const idev = snap.identity_events || [];
+  document.getElementById("idsec").style.display = idev.length ? "" : "none";
+  if(idev.length) document.getElementById("identity").innerHTML = idev.map(e=>
+    `<div class="al"><b>SWAP</b><span style="color:var(--dim);width:80px">${e.device}</span>
+     <span>serial changed ${e.previous_serial} &rarr; ${e.current_serial}</span></div>`).join("");
+
+  const alarms = snap.alarms;
+  document.getElementById("alarms").innerHTML = alarms.length
+    ? alarms.map(a=>{
+        const warn = /MARGIN|FILTER|SERVICE|THROTTL/.test(a.code);
+        return `<div class="al ${warn?'w':''}"><b>${warn?'WARN':'CRIT'}</b>
+                <span style="color:var(--dim);width:80px">${a.device}</span>
+                <span>${a.code}</span></div>`;}).join("")
+    : `<div class="al" style="color:var(--dim)">No active alarms</div>`;
+}
+
+// Racks are grouped by the cooling units that serve them, so a fault that hits
+// one unit visibly hits its own block and not the one beside it.
+function renderRow(row, sc){
+  const layout = {};
+  (snap.layout || []).forEach(l => layout[l.id] = l);
+  const groups = [];
+  snap.racks.filter(r => r.id.includes("-" + row)).forEach(r => {
+    const l = layout[r.id] || {};
+    const key = (l.crv || "?") + "|" + (l.cdu || "");
+    let g = groups.find(x => x.key === key);
+    if(!g){ g = {key, crv:l.crv, cdu:l.cdu, racks:[]}; groups.push(g); }
+    g.racks.push(r);
+  });
+  const short = id => id.replace("RACK-","");
+  document.getElementById("row"+row).innerHTML = groups.map(g => `
+    <div class="block">
+      <div class="bhead">
+        <span class="zone"><b>${g.crv || "—"}</b> air</span>
+        ${g.cdu ? `<span class="zone liq"><b>${g.cdu}</b> liquid</span>`
+                : `<span style="opacity:.6">air cooled only</span>`}
+        <span class="span">${short(g.racks[0].id)}–${short(g.racks[g.racks.length-1].id)}</span>
+      </div>
+      <div class="grid6">${g.racks.map(r => rackTile(r, sc)).join("")}</div>
+    </div>`).join("");
+}
+
+function rackTile(r, sc){
+  const v = r[metric];
+  const t = (v - sc.lo)/(sc.hi - sc.lo);
+  const c = v==null ? "#444" : ramp(t);
+  const codes = r.alarm_word || [];
+  const shut = codes.includes("THERMAL_SHUTDOWN");
+  const thr  = codes.includes("THERMAL_THROTTLING");
+  return `<div class="rack ${codes.length?'alarm':''} ${r.online?'':'off'}"
+            style="--c:${c};--w:${Math.max(2,Math.min(100,t*100))}%"
+            onclick='showDetail(${JSON.stringify(JSON.stringify(r))})'>
+    ${shut?'<span class="badge">OFF</span>':thr?'<span class="badge" style="background:var(--warn)">THR</span>':''}
+    <div class="rid">${r.id.replace("RACK-","")}</div>
+    <div class="rv">${fmt(v,sc.dec)}</div>
+    <div class="ru">${sc.unit}</div>
+    <div class="bar"><i></i></div></div>`;
+}
+const kv=(k,v)=>`<div class="kv"><span>${k}</span><span>${v}</span></div>`;
+function cduCard(c){
+  const bad = (c.alarm_word||[]).length;
+  return `<div class="card"><h3>${c.id}
+      <span style="color:${bad?'var(--crit)':'var(--ok)'}">${c.operating_state||'—'}</span></h3>
+    ${kv("Supply / Return", fmt(c.supply_fluid_temp,1)+" / "+fmt(c.return_fluid_temp,1)+" °C")}
+    ${kv("Flow", fmt(c.flow_rate,1)+" L/min")}
+    ${kv("Pump speed", fmt(c.pump_speed,1)+" %")}
+    ${kv("Cooling load", fmt(c.cooling_load,1)+" kW")}
+    ${kv("Diff pressure", fmt(c.differential_pressure,2)+" bar")}
+    ${kv("Dew point", fmt(c.dew_point,1)+" °C")}
+    ${kv("Dew margin", fmt(c.supply_fluid_temp-c.dew_point,1)+" K")}
+    ${kv("Pump A", (c.pump_a_status||"—")+"  "+fmt(c.pump_a_run_hours,0)+" h")}
+    ${kv("Pump B", (c.pump_b_status||"—")+"  "+fmt(c.pump_b_run_hours,0)+" h")}
+    ${kv("Serial", c.serial_number||"—")}
+    ${kv("Firmware", c.firmware_version||"—")}
+    ${bad?`<div class="kv"><span style="color:var(--crit)">${c.alarm_word.join(", ")}</span></div>`:""}</div>`;
+}
+function crvCard(c){
+  const bad = (c.alarm_word||[]).length;
+  return `<div class="card"><h3>${c.id}
+      <span style="color:${bad?'var(--crit)':'var(--ok)'}">${c.operating_state||'—'}</span></h3>
+    ${kv("Supply / Return air", fmt(c.supply_air_temp,1)+" / "+fmt(c.return_air_temp,1)+" °C")}
+    ${kv("Fan speed", fmt(c.fan_speed,1)+" %")}
+    ${kv("Cooling output", fmt(c.cooling_output,1)+" kW")}
+    ${kv("Capacity", fmt(c.cooling_capacity,1)+" %")}
+    ${kv("Humidity", fmt(c.return_humidity,1)+" %RH")}
+    ${kv("Filter hours", fmt(c.filter_hours,0))}
+    ${kv("Teamwork", (c.teamwork_role||"—")+" / group "+fmt(c.teamwork_group,0))}
+    ${kv("Serial", c.serial_number||"—")}
+    ${kv("Firmware", c.firmware_version||"—")}
+    ${bad?`<div class="kv"><span style="color:var(--crit)">${c.alarm_word.join(", ")}</span></div>`:""}</div>`;
+}
+function showDetail(json){
+  const r = JSON.parse(json);
+  document.getElementById("detailbody").innerHTML =
+    `<h3>${r.id} <span style="color:var(--dim)">${r.online?'online':'OFFLINE'}
+      · ${fmt(r.latency_ms,0)} ms</span></h3>` +
+    Object.entries(r).filter(([k])=>!["id","online","latency_ms"].includes(k))
+      .map(([k,v])=>kv(k, Array.isArray(v)?(v.join(", ")||"—"):
+           (typeof v==="number"?fmt(v,2):v))).join("");
+  document.getElementById("detail").classList.add("open");
+}
+
+document.getElementById("metric").onclick = e=>{
+  if(e.target.dataset.m){
+    metric = e.target.dataset.m;
+    [...e.currentTarget.children].forEach(b=>b.classList.toggle("on", b===e.target));
+    render();
+  }
+};
+// The sidebar sticks below the header, whose height changes when the summary
+// tiles wrap on a narrow window.
+function syncHeaderHeight(){
+  document.documentElement.style.setProperty(
+    "--hh", document.querySelector("header").offsetHeight + "px");
+}
+addEventListener("resize", syncHeaderHeight);
+syncHeaderHeight();
+for(const id of ["cpu","gpu"]) document.getElementById(id).oninput =
+  e=>document.getElementById("v-"+id).textContent = e.target.value + "%";
+document.getElementById("rh").oninput = e=>document.getElementById("v-rh").textContent = e.target.value + "%RH";
+
+async function ctl(path, opts){
+  try{
+    const r = await fetch(CTL+path, {headers:{"Content-Type":"application/json"}, ...opts});
+    if(!r.ok) throw new Error(await r.text());
+    return await r.json();
+  }catch(err){ alert("Control API error (is the simulator running on :8090?)\n\n"+err.message); }
+}
+function targetBody(cpu,gpu){
+  const t = document.getElementById("target").value;
+  const b = {cpu:cpu/100, gpu:gpu/100};
+  if(t.startsWith("rows:"))  b.rows  = t.slice(5).split(",");
+  if(t.startsWith("racks:")) b.racks = t.slice(6).split(",");
+  return b;
+}
+const applyLoad = ()=>ctl("/admin/load",{method:"POST",body:JSON.stringify(
+  targetBody(+cpu.value, +gpu.value))});
+const releaseLoad = ()=>ctl("/admin/load",{method:"DELETE"});
+function scenario(c,g){
+  cpu.value=c; gpu.value=g;
+  document.getElementById("v-cpu").textContent=c+"%";
+  document.getElementById("v-gpu").textContent=g+"%";
+  ctl("/admin/load",{method:"POST",body:JSON.stringify({cpu:c/100,gpu:g/100})});
+}
+function hotspot(){
+  ctl("/admin/load",{method:"POST",body:JSON.stringify(
+    {racks:["RACK-A03","RACK-A04","RACK-A05"],cpu:1.0,gpu:1.0})});
+}
+let FAULTCAT = null;
+
+function paramField(schema, name, deviceType){
+  const id = `p-${name}`;
+  if(schema.type === "choice")
+    return `<div class="fld"><label>${schema.label}
+      <select data-param="${name}">${schema.options.map(o=>
+        `<option ${o===schema.default?"selected":""}>${o}</option>`).join("")}</select></label></div>`;
+  if(schema.type === "number")
+    return `<div class="fld"><label>${schema.label}
+      <input type="number" data-param="${name}" value="${schema.default}"
+             min="${schema.min}" max="${schema.max}"></label></div>`;
+  if(schema.type === "point"){
+    const pts = (FAULTCAT.points[deviceType]||[]);
+    return `<div class="fld"><label>${schema.label}
+      <select data-param="${name}">${pts.map(p=>`<option>${p}</option>`).join("")}</select></label></div>`;
+  }
+  return "";
+}
+
+function syncGroup(box){
+  const kind = box.querySelector('[data-role=kind]').value;
+  const dev  = box.querySelector('[data-role=dev]');
+  const spec = FAULTCAT.catalogue.find(f=>f.kind===kind);
+  if(!spec) return;
+  const devType = (FAULTCAT.devices.find(d=>d.id===dev.value)||{}).type;
+  box.querySelector('[data-role=desc]').textContent = spec.description;
+  box.querySelector('[data-role=params]').innerHTML =
+    Object.entries(spec.params||{}).map(([n,sc])=>paramField(sc,n,devType)).join("");
+}
+
+function renderFaultGroups(){
+  const byGroup = {};
+  FAULTCAT.catalogue.forEach(f=>(byGroup[f.group] = byGroup[f.group]||[]).push(f));
+  document.getElementById("faultgroups").innerHTML = FAULTCAT.groups.map(g=>{
+    const faults  = byGroup[g.id] || [];
+    const devices = FAULTCAT.devices.filter(d=>g.device_types.includes(d.type));
+    const layer   = faults.length && faults[0].layer === "physics" ? "physics" : "comms";
+    return `<div class="fgrp ${layer}" data-g="${g.id}">
+      <p class="ftitle">${g.title}</p>
+      <p class="fsub">${g.subtitle}</p>
+      <div class="fld"><label>Device<select data-role="dev">${
+        devices.map(d=>`<option value="${d.id}">${d.id}</option>`).join("")}</select></label></div>
+      <div class="fld"><label>Fault<select data-role="kind">${
+        faults.map(f=>`<option value="${f.kind}">${f.label}</option>`).join("")}</select></label></div>
+      <div data-role="params"></div>
+      <p class="fdesc" data-role="desc"></p>
+      <button class="act danger" data-role="inject" style="width:100%">Inject</button>
+    </div>`;
+  }).join("");
+
+  document.querySelectorAll(".fgrp").forEach(box=>{
+    box.querySelector('[data-role=kind]').onchange = ()=>syncGroup(box);
+    box.querySelector('[data-role=dev]').onchange  = ()=>syncGroup(box);
+    box.querySelector('[data-role=inject]').onclick = ()=>injectFrom(box);
+    syncGroup(box);
+  });
+}
+
+async function injectFrom(box){
+  const params = {};
+  box.querySelectorAll("[data-param]").forEach(el=>{
+    params[el.dataset.param] = el.type === "number" ? Number(el.value) : el.value;
+  });
+  const r = await ctl("/admin/faults", {method:"POST", body:JSON.stringify({
+    device_id: box.querySelector('[data-role=dev]').value,
+    kind: box.querySelector('[data-role=kind]').value,
+    params
+  })});
+  if(r) refreshFaults();
+}
+
+async function clearFault(deviceId){
+  await ctl(`/admin/faults/${deviceId}`, {method:"DELETE"});
+  refreshFaults();
+}
+async function clearFaults(){ await ctl("/admin/faults",{method:"DELETE"}); refreshFaults(); }
+
+async function refreshFaults(){
+  const f = await ctl("/admin/faults",{});
+  if(!f) return;
+  FAULTCAT = f;
+  const el = document.getElementById("activef");
+  el.innerHTML = f.active.length
+    ? f.active.map(a=>`<div class="afault">
+        <span class="tag">${a.layer}</span>
+        <span>${a.device_id}</span>
+        <span style="color:var(--dim)">${a.kind}</span>
+        <button class="x" title="Clear" onclick="clearFault('${a.device_id}')">&times;</button>
+      </div>`).join("")
+    : `<div class="hint" style="margin:0">No active faults.</div>`;
+}
+
+const setRh = ()=>ctl("/admin/room",{method:"POST",body:JSON.stringify({rh_pct:+rh.value})});
+const autoRh = ()=>{ document.getElementById("v-rh").textContent="auto";
+  ctl("/admin/room",{method:"POST",body:JSON.stringify({rh_pct:null})}); };
+const setClock = s=>ctl("/admin/clock",{method:"POST",body:JSON.stringify({scale:s})});
+async function resetAll(){ await ctl("/admin/reset",{method:"POST"});
+  document.getElementById("v-rh").textContent="auto"; refreshFaults(); }
+
+(async function init(){
+  await refreshFaults();
+  if(FAULTCAT) renderFaultGroups();
+  connect();
+})();
+</script>
+</body>
+</html>

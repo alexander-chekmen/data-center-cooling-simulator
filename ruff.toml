@@ -1,0 +1,12 @@
+line-length = 100
+target-version = "py311"
+
+[lint]
+select = ["E", "F", "W", "I", "UP", "B"]
+ignore = [
+    "E501",   # line length is handled by the formatter, not enforced hard
+    "B008",   # FastAPI dependency defaults are idiomatic
+]
+
+[lint.per-file-ignores]
+"tests/*" = ["E402"]   # sys.path setup precedes imports in conftest

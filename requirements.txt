@@ -1,0 +1,7 @@
+# Runtime dependencies.
+numpy>=2.0,<3
+PyYAML>=6.0,<7
+pymodbus>=3.15,<4
+fastapi>=0.115,<1
+pydantic>=2.0,<3        # imported directly by the control API
+uvicorn[standard]>=0.30,<1

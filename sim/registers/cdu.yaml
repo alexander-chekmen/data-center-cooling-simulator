@@ -1,0 +1,362 @@
+# ThermalEdge - coolant distribution unit register map
+#
+# ATTRIBUTION - READ THIS BEFORE CITING ANY ADDRESS BELOW.
+#
+# Every address in this file is INVENTED for this project and has been verified
+# against no vendor specification. Do not represent it as matching any real
+# product.
+#
+# The parameter set modeled here - supply and return fluid temperature, supply
+# and return pressure, flow rate, differential pressure, dew point, pump speed,
+# cooling load, and configurable setpoints - reflects the quantities a coolant
+# distribution unit must expose for a monitoring system to be useful. That is a
+# statement about the physics of liquid cooling, not a claim about any vendor's
+# documented register map.
+#
+# ADDRESSING: `modicon` is 3xxxx notation for input registers and 4xxxx for
+# holding registers; `offset` is the zero-based address passed to the client.
+
+device_type: CDU
+description: Coolant distribution unit (direct-to-chip / rear-door)
+register_space: input
+address_base: 30001
+
+points:
+  - key: operating_state
+    modicon: 30001
+    offset: 0
+    type: uint16
+    kind: enum
+    enum: { 0: STOPPED, 1: STARTING, 2: RUNNING, 3: FAULT }
+    poll_class: status
+    source: inferred
+
+  - key: pump_control_mode
+    modicon: 30002
+    offset: 1
+    type: uint16
+    kind: enum
+    enum: { 0: MANUAL, 1: AUTO_DELTA_P, 2: AUTO_FLOW, 3: AUTO_TEMP }
+    poll_class: status
+    source: inferred
+
+  # ---- fluid loop ---------------------------------------------------------
+  - key: supply_fluid_temp
+    modicon: 30010
+    offset: 9
+    type: int16
+    scale: 10
+    unit: degC
+    range: [-10.0, 70.0]
+    poll_class: critical
+    source: inferred
+
+  - key: return_fluid_temp
+    modicon: 30011
+    offset: 10
+    type: int16
+    scale: 10
+    unit: degC
+    range: [-10.0, 70.0]
+    poll_class: critical
+    source: inferred
+
+  - key: supply_pressure
+    modicon: 30012
+    offset: 11
+    type: uint16
+    scale: 100
+    unit: bar
+    range: [0.0, 10.0]
+    poll_class: flow
+    source: inferred
+
+  - key: return_pressure
+    modicon: 30013
+    offset: 12
+    type: uint16
+    scale: 100
+    unit: bar
+    range: [0.0, 10.0]
+    poll_class: flow
+    source: inferred
+
+  - key: flow_rate
+    modicon: 30014
+    offset: 13
+    type: uint16
+    scale: 10
+    unit: Lpm
+    range: [0.0, 600.0]
+    poll_class: flow
+    source: inferred
+
+  - key: differential_pressure
+    modicon: 30015
+    offset: 14
+    type: uint16
+    scale: 100
+    unit: bar
+    range: [0.0, 10.0]
+    poll_class: flow
+    source: inferred
+
+  - key: dew_point
+    modicon: 30016
+    offset: 15
+    type: int16
+    scale: 10
+    unit: degC
+    range: [-20.0, 40.0]
+    poll_class: critical
+    source: inferred
+
+  - key: pump_speed
+    modicon: 30017
+    offset: 16
+    type: uint16
+    scale: 10
+    unit: pct
+    range: [0.0, 100.0]
+    poll_class: status
+    source: inferred
+
+  - key: cooling_load
+    modicon: 30018
+    offset: 17
+    type: uint16
+    scale: 10
+    unit: kW
+    range: [0.0, 2000.0]
+    poll_class: power
+    source: inferred
+
+  - key: pump_suction_pressure
+    modicon: 30019
+    offset: 18
+    type: uint16
+    scale: 100
+    unit: bar
+    range: [0.0, 10.0]
+    poll_class: flow
+    source: inferred
+
+  - key: pump_discharge_pressure
+    modicon: 30020
+    offset: 19
+    type: uint16
+    scale: 100
+    unit: bar
+    range: [0.0, 10.0]
+    poll_class: flow
+    source: inferred
+
+  - key: refrigerant_liquid_temp
+    modicon: 30021
+    offset: 20
+    type: int16
+    scale: 10
+    unit: degC
+    range: [-20.0, 80.0]
+    poll_class: flow
+    source: inferred
+
+  - key: run_hours
+    modicon: 30082
+    offset: 81
+    type: uint32
+    scale: 1
+    unit: h
+    range: [0.0, 200000.0]
+    poll_class: maintenance
+    source: inferred
+
+  - key: alarm_word
+    modicon: 30090
+    offset: 89
+    type: uint16
+    kind: bitfield
+    bits:
+      0: HIGH_SUPPLY_TEMP
+      1: LOW_FLOW
+      2: HIGH_DIFF_PRESSURE
+      3: DEWPOINT_MARGIN_LOW
+      4: PUMP_FAULT
+      5: SENSOR_FAULT
+    poll_class: status
+    source: inferred
+
+  # ---- device identity (inferred placements) ------------------------------
+  # Also exposed via Modbus function code 0x2B / MEI type 14 (Read Device
+  # Identification), which is the standard mechanism; these registers are the
+  # vendor-specific mechanism. Both are common in the field.
+  - key: device_model
+    modicon: 30100
+    offset: 99
+    type: string
+    chars: 16
+    kind: identity
+    poll_class: config
+    source: inferred
+
+  - key: serial_number
+    modicon: 30108
+    offset: 107
+    type: string
+    chars: 20
+    kind: identity
+    poll_class: config
+    source: inferred
+
+  - key: firmware_version
+    modicon: 30118
+    offset: 117
+    type: string
+    chars: 8
+    kind: identity
+    poll_class: config
+    source: inferred
+
+  - key: hardware_revision
+    modicon: 30122
+    offset: 121
+    type: uint16
+    scale: 1
+    unit: rev
+    range: [0.0, 100.0]
+    poll_class: config
+    source: inferred
+
+  # ---- pump sub-assemblies (N+1 redundancy) -------------------------------
+  # A CDU is not one indivisible unit: each pump is a serialized component with
+  # its own service life. Run hours are per pump, not per device.
+  - key: pump_a_serial
+    modicon: 30130
+    offset: 129
+    type: string
+    chars: 20
+    kind: identity
+    poll_class: config
+    source: inferred
+
+  - key: pump_a_status
+    modicon: 30140
+    offset: 139
+    type: uint16
+    kind: enum
+    enum: { 0: STOPPED, 1: RUNNING, 2: STANDBY, 3: FAULT }
+    poll_class: status
+    source: inferred
+
+  - key: pump_a_run_hours
+    modicon: 30141
+    offset: 140
+    type: uint32
+    scale: 1
+    unit: h
+    range: [0.0, 200000.0]
+    poll_class: maintenance
+    source: inferred
+
+  - key: pump_b_serial
+    modicon: 30143
+    offset: 142
+    type: string
+    chars: 20
+    kind: identity
+    poll_class: config
+    source: inferred
+
+  - key: pump_b_status
+    modicon: 30153
+    offset: 152
+    type: uint16
+    kind: enum
+    enum: { 0: STOPPED, 1: RUNNING, 2: STANDBY, 3: FAULT }
+    poll_class: status
+    source: inferred
+
+  - key: pump_b_run_hours
+    modicon: 30154
+    offset: 153
+    type: uint32
+    scale: 1
+    unit: h
+    range: [0.0, 200000.0]
+    poll_class: maintenance
+    source: inferred
+
+# ---- writable setpoints (holding registers, function code 0x03/0x06) ------
+setpoints:
+  register_space: holding
+  address_base: 40001
+  points:
+    - key: supply_fluid_temp_sp
+      modicon: 40001
+      offset: 0
+      type: int16
+      scale: 10
+      unit: degC
+      range: [10.0, 40.0]
+      poll_class: config
+      source: inferred
+
+    - key: return_temp_limit
+      modicon: 40002
+      offset: 1
+      type: int16
+      scale: 10
+      unit: degC
+      range: [20.0, 60.0]
+      poll_class: config
+      source: inferred
+
+    - key: pump_flow_sp
+      modicon: 40003
+      offset: 2
+      type: uint16
+      scale: 10
+      unit: Lpm
+      range: [0.0, 600.0]
+      poll_class: config
+      source: inferred
+
+    - key: differential_pressure_sp
+      modicon: 40004
+      offset: 3
+      type: uint16
+      scale: 100
+      unit: bar
+      range: [0.0, 10.0]
+      poll_class: config
+      source: inferred
+
+    - key: supply_pressure_limit
+      modicon: 40005
+      offset: 4
+      type: uint16
+      scale: 100
+      unit: bar
+      range: [0.0, 10.0]
+      poll_class: config
+      source: inferred
+
+    - key: manual_pump_speed
+      modicon: 40006
+      offset: 5
+      type: uint16
+      scale: 10
+      unit: pct
+      range: [0.0, 100.0]
+      poll_class: config
+      source: inferred
+
+    - key: dewpoint_margin
+      modicon: 40007
+      offset: 6
+      type: int16
+      scale: 10
+      unit: K
+      range: [0.0, 10.0]
+      poll_class: config
+      source: inferred

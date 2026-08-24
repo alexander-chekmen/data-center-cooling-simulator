@@ -1,0 +1,180 @@
+# ThermalEdge - rack power distribution unit register map
+#
+# ATTRIBUTION: every address in this file is invented for this project and has
+# been verified against no vendor specification.
+#
+# Rack IT load in a real data center is observed through rack PDUs, not through
+# the cooling units; this device type exists so that per-rack power and
+# utilization reach the collector over the same protocol path as everything
+# else. The rack asset tag is deliberately separate from the PDU serial number:
+# replacing a failed PDU must not change the rack's identity.
+
+device_type: PDU
+description: Rack power distribution unit
+register_space: input
+address_base: 30001
+
+points:
+  - key: operating_state
+    modicon: 30001
+    offset: 0
+    type: uint16
+    kind: enum
+    enum: { 0: OFFLINE, 1: ONLINE, 2: FAULT }
+    poll_class: status
+    source: inferred
+
+  - key: total_power
+    modicon: 30010
+    offset: 9
+    type: uint16
+    scale: 10
+    unit: kW
+    range: [0.0, 200.0]
+    poll_class: power
+    source: inferred
+
+  - key: phase_a_current
+    modicon: 30011
+    offset: 10
+    type: uint16
+    scale: 10
+    unit: A
+    range: [0.0, 400.0]
+    poll_class: power
+    source: inferred
+
+  - key: phase_b_current
+    modicon: 30012
+    offset: 11
+    type: uint16
+    scale: 10
+    unit: A
+    range: [0.0, 400.0]
+    poll_class: power
+    source: inferred
+
+  - key: phase_c_current
+    modicon: 30013
+    offset: 12
+    type: uint16
+    scale: 10
+    unit: A
+    range: [0.0, 400.0]
+    poll_class: power
+    source: inferred
+
+  - key: cpu_utilization
+    modicon: 30020
+    offset: 19
+    type: uint16
+    scale: 10
+    unit: pct
+    range: [0.0, 100.0]
+    poll_class: critical
+    source: inferred
+
+  - key: gpu_utilization
+    modicon: 30021
+    offset: 20
+    type: uint16
+    scale: 10
+    unit: pct
+    range: [0.0, 100.0]
+    poll_class: critical
+    source: inferred
+
+  - key: inlet_temp
+    modicon: 30030
+    offset: 29
+    type: int16
+    scale: 10
+    unit: degC
+    range: [-20.0, 80.0]
+    poll_class: critical
+    source: inferred
+
+  - key: outlet_temp
+    modicon: 30031
+    offset: 30
+    type: int16
+    scale: 10
+    unit: degC
+    range: [-20.0, 80.0]
+    poll_class: critical
+    source: inferred
+
+  - key: energy_total
+    modicon: 30040
+    offset: 39
+    type: uint32
+    scale: 10
+    unit: kWh
+    range: [0.0, 100000000.0]
+    poll_class: maintenance
+    source: inferred
+
+  - key: alarm_word
+    modicon: 30090
+    offset: 89
+    type: uint16
+    kind: bitfield
+    bits:
+      0: HIGH_INLET_TEMP
+      1: THERMAL_THROTTLING
+      2: THERMAL_SHUTDOWN
+      3: OVERCURRENT
+    poll_class: status
+    source: inferred
+
+  # ---- device identity (inferred placements) ------------------------------
+  # Also exposed via Modbus function code 0x2B / MEI type 14 (Read Device
+  # Identification), which is the standard mechanism; these registers are the
+  # vendor-specific mechanism. Both are common in the field.
+  - key: device_model
+    modicon: 30100
+    offset: 99
+    type: string
+    chars: 16
+    kind: identity
+    poll_class: config
+    source: inferred
+
+  - key: serial_number
+    modicon: 30108
+    offset: 107
+    type: string
+    chars: 20
+    kind: identity
+    poll_class: config
+    source: inferred
+
+  - key: firmware_version
+    modicon: 30118
+    offset: 117
+    type: string
+    chars: 8
+    kind: identity
+    poll_class: config
+    source: inferred
+
+  - key: hardware_revision
+    modicon: 30122
+    offset: 121
+    type: uint16
+    scale: 1
+    unit: rev
+    range: [0.0, 100.0]
+    poll_class: config
+    source: inferred
+
+  # The RACK's asset tag, distinct from this PDU's serial number: swapping a
+  # failed PDU must not change the rack's identity.
+  - key: rack_asset_tag
+    modicon: 30130
+    offset: 129
+    type: string
+    chars: 16
+    kind: identity
+    poll_class: config
+    source: inferred

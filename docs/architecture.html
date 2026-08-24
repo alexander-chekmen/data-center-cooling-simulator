@@ -1,0 +1,398 @@
+<title>ThermalEdge Wiring</title>
+<style>
+  :root{
+    --ground:#EEF1F5; --surface:#FFFFFF; --sunk:#E4E9EF;
+    --ink:#16202B; --ink-2:#4A5A6B; --ink-3:#738696;
+    --edge:#CBD5DF; --edge-2:#AEBDCB;
+    --control:#B4630A; --telemetry:#2C6E8F;
+    --warn:#B3400E; --ok:#3F7D53;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+    --sans:ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+  }
+  @media (prefers-color-scheme:dark){
+    :root:not([data-theme="light"]){
+      --ground:#101821; --surface:#17212C; --sunk:#0B1219;
+      --ink:#E2E9F0; --ink-2:#A9B8C6; --ink-3:#7A8B9B;
+      --edge:#28353F; --edge-2:#3A4A57;
+      --control:#E39A4A; --telemetry:#6FB4D4;
+      --warn:#E8724C; --ok:#6FBF88;
+    }
+  }
+  :root[data-theme="dark"]{
+    --ground:#101821; --surface:#17212C; --sunk:#0B1219;
+    --ink:#E2E9F0; --ink-2:#A9B8C6; --ink-3:#7A8B9B;
+    --edge:#28353F; --edge-2:#3A4A57;
+    --control:#E39A4A; --telemetry:#6FB4D4;
+    --warn:#E8724C; --ok:#6FBF88;
+  }
+
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--sans);
+       font-size:16px;line-height:1.6;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1080px;margin:0 auto;padding:56px 28px 96px}
+  .col{max-width:68ch}
+
+  .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.16em;
+           text-transform:uppercase;color:var(--ink-3);margin:0 0 14px}
+  h1{font-size:clamp(30px,4.4vw,44px);line-height:1.1;letter-spacing:-.02em;
+     margin:0 0 18px;text-wrap:balance;font-weight:650}
+  h2{font-size:22px;letter-spacing:-.01em;margin:64px 0 6px;font-weight:640;text-wrap:balance}
+  h3{font-size:15px;margin:32px 0 6px;font-weight:640}
+  p{margin:0 0 16px;color:var(--ink-2)}
+  .col p{max-width:68ch}
+  strong{color:var(--ink);font-weight:640}
+  code{font-family:var(--mono);font-size:.87em;background:var(--sunk);
+       border:1px solid var(--edge);border-radius:4px;padding:.1em .35em;color:var(--ink)}
+  .lede{font-size:18px;color:var(--ink-2);max-width:64ch}
+  .rule{height:1px;background:var(--edge);margin:0;border:0}
+
+  figure{margin:28px 0 8px;padding:0}
+  .scroll{overflow-x:auto;background:var(--surface);border:1px solid var(--edge);
+          border-radius:10px;padding:22px 20px}
+  figcaption{font-size:13px;color:var(--ink-3);margin-top:10px;max-width:70ch}
+  svg{display:block;max-width:100%;height:auto;color:var(--ink)}
+
+  .box{fill:var(--surface);stroke:var(--edge-2);stroke-width:1.5}
+  .box-sunk{fill:var(--sunk);stroke:var(--edge-2);stroke-width:1.5}
+  .container{fill:none;stroke:var(--edge-2);stroke-width:1.5;stroke-dasharray:6 5}
+  .ln{stroke:currentColor;stroke-width:1.6;fill:none}
+  .ln-ctl{stroke:var(--control);stroke-width:2;fill:none}
+  .ln-tel{stroke:var(--telemetry);stroke-width:2;fill:none}
+  .t{font-family:var(--mono);font-size:12.5px;fill:var(--ink)}
+  .t-sm{font-family:var(--mono);font-size:10.5px;fill:var(--ink-3)}
+  .t-lbl{font-family:var(--mono);font-size:10.5px;letter-spacing:.06em}
+  .t-ctl{fill:var(--control)}
+  .t-tel{fill:var(--telemetry)}
+  .t-hd{font-family:var(--mono);font-size:11px;letter-spacing:.1em;fill:var(--ink-3)}
+
+  table{border-collapse:collapse;width:100%;font-size:13.5px;margin:20px 0 8px;
+        font-variant-numeric:tabular-nums}
+  th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--edge);vertical-align:top}
+  th{font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;
+     color:var(--ink-3);font-weight:500;border-bottom:1px solid var(--edge-2)}
+  td:first-child{font-family:var(--mono);white-space:nowrap;color:var(--ink)}
+  .tbl{overflow-x:auto}
+
+  .note{border-left:2px solid var(--control);padding:2px 0 2px 16px;margin:22px 0;
+        max-width:66ch}
+  .note p{margin:0;color:var(--ink-2)}
+  .note b{color:var(--ink)}
+
+  ol.stages{list-style:none;counter-reset:s;padding:0;margin:22px 0;max-width:70ch}
+  ol.stages li{counter-increment:s;position:relative;padding:0 0 18px 46px;
+               border-left:1px solid var(--edge);margin-left:11px}
+  ol.stages li:last-child{border-left-color:transparent;padding-bottom:0}
+  ol.stages li::before{content:counter(s,decimal-leading-zero);position:absolute;
+    left:-11px;top:0;width:22px;height:22px;border-radius:50%;background:var(--sunk);
+    border:1px solid var(--edge-2);font-family:var(--mono);font-size:10px;
+    display:flex;align-items:center;justify-content:center;color:var(--ink-3)}
+  ol.stages b{display:block;font-size:14px;margin-bottom:2px}
+  ol.stages span{font-size:13.5px;color:var(--ink-2)}
+  ol.stages code{font-size:12px}
+
+  .legend{display:flex;gap:22px;flex-wrap:wrap;font-family:var(--mono);font-size:11px;
+          color:var(--ink-3);margin:14px 0 0}
+  .legend i{display:inline-block;width:22px;height:2px;vertical-align:middle;margin-right:7px}
+  .status{display:flex;flex-wrap:wrap;gap:8px;margin:18px 0 0;padding:0;list-style:none}
+  .status li{font-family:var(--mono);font-size:11.5px;padding:4px 10px;border-radius:999px;
+             border:1px solid var(--edge-2);color:var(--ink-2);background:var(--surface)}
+  .status li.on{border-color:var(--ok);color:var(--ok)}
+  .status li.off{border-style:dashed;color:var(--ink-3)}
+</style>
+
+<div class="wrap">
+<div class="col">
+  <p class="eyebrow">ThermalEdge · Phase 1 complete</p>
+  <h1>How the system is wired</h1>
+  <p class="lede">Two services, seven Modbus listeners, thirty simulated devices, and one
+  deliberate rule: the collector must never know the equipment is simulated.</p>
+</div>
+
+<h2>The whole system</h2>
+<div class="col">
+<p>Everything runs as two containers. The <strong>simulator</strong> owns the physics and
+serves it as Modbus registers. The <strong>api</strong> service polls those registers and
+serves the dashboard. Your browser talks to both — and that split is the point.</p>
+</div>
+
+<figure>
+<div class="scroll">
+<svg viewBox="0 0 960 560" role="img" aria-label="System wiring: the browser sends control commands to the simulator's control API on port 8090, which changes the physics; the resulting state is encoded into Modbus registers, polled by the collector over TCP ports 5020 to 5040, and returned to the browser over a WebSocket on port 8000.">
+  <defs>
+    <marker id="ac" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <polygon points="0,1 10,5 0,9" fill="var(--control)"/></marker>
+    <marker id="at" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <polygon points="0,1 10,5 0,9" fill="var(--telemetry)"/></marker>
+  </defs>
+
+  <rect class="container" x="40" y="286" width="250" height="238" rx="9"/>
+  <text class="t-hd" x="52" y="306">CONTAINER · api</text>
+  <rect class="container" x="656" y="34" width="266" height="490" rx="9"/>
+  <text class="t-hd" x="668" y="54">CONTAINER · simulator</text>
+
+  <rect class="box" x="60" y="62" width="210" height="68" rx="7"/>
+  <text class="t" x="76" y="90">Browser</text>
+  <text class="t-sm" x="76" y="110">dashboard + control panel</text>
+
+  <rect class="box" x="676" y="70" width="226" height="66" rx="7"/>
+  <text class="t" x="692" y="97">Control API</text>
+  <text class="t-sm" x="692" y="115">FastAPI · test fixture</text>
+
+  <rect class="box" x="676" y="188" width="226" height="72" rx="7"/>
+  <text class="t" x="692" y="215">Simulation engine</text>
+  <text class="t-sm" x="692" y="233">load → heat → control loops</text>
+  <text class="t-sm" x="692" y="249">step(state, dt, inputs) · 1 Hz</text>
+
+  <rect class="box-sunk" x="676" y="312" width="226" height="66" rx="7"/>
+  <text class="t" x="692" y="339">Register banks</text>
+  <text class="t-sm" x="692" y="357">30 devices · input + holding</text>
+
+  <rect class="box" x="676" y="430" width="226" height="66" rx="7"/>
+  <text class="t" x="692" y="457">Modbus listeners</text>
+  <text class="t-sm" x="692" y="475">7 sockets · hand-rolled MBAP</text>
+
+  <rect class="box" x="60" y="318" width="210" height="66" rx="7"/>
+  <text class="t" x="76" y="345">Telemetry API</text>
+  <text class="t-sm" x="76" y="363">WebSocket hub · snapshot</text>
+
+  <rect class="box" x="60" y="430" width="210" height="66" rx="7"/>
+  <text class="t" x="76" y="457">Collector</text>
+  <text class="t-sm" x="76" y="475">asyncio · pymodbus client</text>
+
+  <path class="ln-ctl" d="M270 96 H 668" marker-end="url(#ac)"/>
+  <text class="t-lbl t-ctl" x="330" y="86">HTTP · POST /admin/load · :8090</text>
+
+  <path class="ln-ctl" d="M789 136 V 182" marker-end="url(#ac)"/>
+  <text class="t-lbl t-ctl" x="800" y="165">changes the physics</text>
+
+  <path class="ln" d="M789 260 V 306" marker-end="url(#at)" stroke="var(--telemetry)"/>
+  <text class="t-lbl t-tel" x="800" y="289">encoded via register map</text>
+
+  <path class="ln-tel" d="M789 378 V 424" marker-end="url(#at)"/>
+  <text class="t-lbl t-tel" x="800" y="407">read live, per request</text>
+
+  <path class="ln-tel" d="M670 463 H 278" marker-end="url(#at)"/>
+  <text class="t-lbl t-tel" x="352" y="453">Modbus TCP · :5020–5040 · polled</text>
+
+  <path class="ln-tel" d="M165 430 V 390" marker-end="url(#at)"/>
+  <text class="t-lbl t-tel" x="178" y="414">in-process callback</text>
+
+  <path class="ln-tel" d="M165 318 V 136" marker-end="url(#at)"/>
+  <text class="t-lbl t-tel" x="178" y="230">WebSocket</text>
+  <text class="t-lbl t-tel" x="178" y="245">/ws/telemetry</text>
+  <text class="t-lbl t-tel" x="178" y="260">:8000 · 1 Hz</text>
+</svg>
+</div>
+<figcaption>Control flows clockwise out to the simulator; telemetry returns counter-clockwise
+through the full pipeline. The two never share a path.</figcaption>
+</figure>
+
+<div class="legend">
+  <span><i style="background:var(--control)"></i>control · out of band</span>
+  <span><i style="background:var(--telemetry)"></i>telemetry · the monitored path</span>
+</div>
+
+<h2>Why the two paths are separate</h2>
+<div class="col">
+<p>The collector reaches the simulator <strong>only</strong> over Modbus TCP. It contains no
+import, no config key and no branch that knows the other end is simulated. Point it at real
+hardware and the only thing that changes is the device inventory.</p>
+<p>That is why control cannot travel the same path. If clicking a slider wrote into the
+telemetry stream, the pipeline would be proving nothing. Instead the browser holds two
+connections, and a control action is only visible once the collector has independently
+<em>discovered</em> its consequences by polling registers — typically 1–3 seconds later.</p>
+</div>
+<div class="note">
+<p><b>The physical analogy.</b> This is the shape of a hardware test bench: the load bank is
+driven from one place, and the building management system that observes it is wired
+somewhere else entirely. Neither knows about the other.</p>
+</div>
+
+<h2>What happens to one measurement</h2>
+<div class="col">
+<p>A single rack inlet temperature crosses six representations between the physics and the
+pixel. Each hop is a real place integrations break.</p>
+</div>
+
+<figure>
+<div class="scroll">
+<svg viewBox="0 0 960 250" role="img" aria-label="A rack inlet temperature of 26.4 degrees is multiplied by ten to become the integer 264, packed into a Modbus frame, read by the collector, divided by ten back to 26.4, and rendered as JSON in the dashboard.">
+  <defs>
+    <marker id="a3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <polygon points="0,1 10,5 0,9" fill="currentColor"/></marker>
+  </defs>
+  <text class="t-hd" x="20" y="26">SIMULATOR</text>
+  <text class="t-hd" x="470" y="26">WIRE</text>
+  <text class="t-hd" x="700" y="26">COLLECTOR / API</text>
+  <line x1="20" y1="36" x2="440" y2="36" stroke="var(--edge)"/>
+  <line x1="470" y1="36" x2="660" y2="36" stroke="var(--edge)"/>
+  <line x1="700" y1="36" x2="940" y2="36" stroke="var(--edge)"/>
+
+  <rect class="box" x="20" y="58" width="180" height="62" rx="7"/>
+  <text class="t" x="34" y="84">t_inlet = 26.4</text>
+  <text class="t-sm" x="34" y="104">float °C · SimState</text>
+
+  <rect class="box" x="248" y="58" width="192" height="62" rx="7"/>
+  <text class="t" x="262" y="84">264</text>
+  <text class="t-sm" x="262" y="104">uint16 · scale ×10</text>
+
+  <rect class="box-sunk" x="470" y="58" width="190" height="62" rx="7"/>
+  <text class="t" x="484" y="84">01 08</text>
+  <text class="t-sm" x="484" y="104">MBAP frame · offset 29</text>
+
+  <rect class="box" x="700" y="58" width="240" height="62" rx="7"/>
+  <text class="t" x="714" y="84">"inlet_temp": 26.4</text>
+  <text class="t-sm" x="714" y="104">JSON over WebSocket</text>
+
+  <path class="ln" d="M200 89 H 242" marker-end="url(#a3)"/>
+  <path class="ln" d="M440 89 H 464" marker-end="url(#a3)"/>
+  <path class="ln" d="M660 89 H 694" marker-end="url(#a3)"/>
+
+  <text class="t-sm" x="248" y="152">points.py projects state</text>
+  <text class="t-sm" x="248" y="168">→ regmap encodes ×10</text>
+  <text class="t-sm" x="470" y="152">pymodbus client reads</text>
+  <text class="t-sm" x="470" y="168">a contiguous block</text>
+  <text class="t-sm" x="700" y="152">regmap decodes ÷10,</text>
+  <text class="t-sm" x="700" y="168">rejects out-of-range</text>
+
+  <rect class="box-sunk" x="20" y="186" width="920" height="44" rx="7"/>
+  <text class="t-sm" x="34" y="213">One YAML register map defines the address, type, scale, unit, range and poll class — and BOTH sides build from it, so the encoder and decoder cannot drift apart.</text>
+</svg>
+</div>
+<figcaption>The ×10 scaling and the Modicon-to-offset translation (register 30030 is read at
+offset 29) are the two classic Modbus integration bugs. Both are pinned by tests.</figcaption>
+</figure>
+
+<h2>Where faults enter</h2>
+<div class="col">
+<p>Faults are injected at two different layers, and the distinction matters: one breaks the
+equipment, the other breaks your ability to see it.</p>
+</div>
+
+<figure>
+<div class="scroll">
+<svg viewBox="0 0 900 268" role="img" aria-label="Physics faults such as pump failure enter the simulation engine and change what the equipment does. Communication faults such as device offline enter the Modbus listener layer and change what the collector can observe, leaving the equipment healthy.">
+  <defs>
+    <marker id="a4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <polygon points="0,1 10,5 0,9" fill="var(--warn)"/></marker>
+  </defs>
+  <rect class="box" x="300" y="34" width="300" height="60" rx="7"/>
+  <text class="t" x="318" y="60">Simulation engine</text>
+  <text class="t-sm" x="318" y="79">heat actually stops leaving</text>
+
+  <rect class="box" x="300" y="146" width="300" height="60" rx="7"/>
+  <text class="t" x="318" y="172">Modbus listener</text>
+  <text class="t-sm" x="318" y="191">equipment is fine, the view is not</text>
+
+  <rect class="box-sunk" x="20" y="34" width="236" height="60" rx="7"/>
+  <text class="t" x="34" y="58">PHYSICS FAULTS</text>
+  <text class="t-sm" x="34" y="79">pump · fan · flow clamp</text>
+
+  <rect class="box-sunk" x="20" y="146" width="236" height="60" rx="7"/>
+  <text class="t" x="34" y="170">COMMS FAULTS</text>
+  <text class="t-sm" x="34" y="189">offline · latency · frozen sensor</text>
+
+  <path class="ln" d="M256 64 H 294" stroke="var(--warn)" marker-end="url(#a4)"/>
+  <path class="ln" d="M256 176 H 294" stroke="var(--warn)" marker-end="url(#a4)"/>
+
+  <rect class="box" x="644" y="34" width="236" height="172" rx="7"/>
+  <text class="t" x="660" y="60">Observable result</text>
+  <text class="t-sm" x="660" y="86">temps climb → racks throttle</text>
+  <text class="t-sm" x="660" y="104">→ load sheds → settles</text>
+  <text class="t-sm" x="660" y="134">— versus —</text>
+  <text class="t-sm" x="660" y="162">poll times out → OFFLINE</text>
+  <text class="t-sm" x="660" y="180">→ stale data flagged</text>
+
+  <path class="ln" d="M600 64 H 638" stroke="var(--edge-2)" marker-end="url(#a4)"/>
+  <path class="ln" d="M600 176 H 638" stroke="var(--edge-2)" marker-end="url(#a4)"/>
+
+  <text class="t-sm" x="20" y="248">A good dashboard tells these two apart. Conflating them is how operators chase a cooling problem that is actually a network problem.</text>
+</svg>
+</div>
+<figcaption>Both fault families are injected through the same control API, but they enter the
+system at different layers and produce entirely different signatures. The catalogue in
+<code>sim/faults.py</code> scopes each fault to the equipment it can actually affect — a pump
+failure on an air cooler is rejected, not silently accepted.</figcaption>
+</figure>
+
+<h2>Ports and processes</h2>
+<div class="tbl">
+<table>
+<thead><tr><th>Endpoint</th><th>Service</th><th>Protocol</th><th>Purpose</th></tr></thead>
+<tbody>
+<tr><td>:8000</td><td>api</td><td>HTTP + WebSocket</td><td>Dashboard, snapshot API, live telemetry feed</td></tr>
+<tr><td>:8090</td><td>simulator</td><td>HTTP</td><td>Control API — load, faults, humidity, clock. Not part of the monitored system</td></tr>
+<tr><td>:5020–5023</td><td>simulator</td><td>Modbus TCP</td><td>CRV in-row cooling units, one listener each</td></tr>
+<tr><td>:5030–5031</td><td>simulator</td><td>Modbus TCP</td><td>CDU coolant distribution units</td></tr>
+<tr><td>:5040</td><td>simulator</td><td>Modbus TCP</td><td>Rack PDU gateway — 24 racks behind one socket, addressed by unit id</td></tr>
+</tbody>
+</table>
+</div>
+<div class="col">
+<p>The PDU gateway is the realistic bit: field devices routinely sit behind a single
+serial-to-TCP gateway and are distinguished by unit id, not by address. Reading offset
+<code>9</code> at unit 2 gives CDU supply temperature; the same offset at unit 3 gives rack
+power. The unit id decides what the address means.</p>
+</div>
+
+<h2>What a poll cycle actually costs</h2>
+<div class="col">
+<p>Each device exposes 16–35 points across six poll classes with different cadences. A naive
+collector issues one request per point — roughly a thousand per second across the fleet, which
+collapses. Points are instead grouped into contiguous read windows across whichever classes
+are due together.</p>
+</div>
+<div class="tbl">
+<table>
+<thead><tr><th>Device</th><th>Points</th><th>Per-class planning</th><th>Union planning</th></tr></thead>
+<tbody>
+<tr><td>CRV</td><td>35</td><td>8 requests</td><td><strong>3 requests</strong></td></tr>
+<tr><td>CDU</td><td>33</td><td>8 requests</td><td><strong>3 requests</strong></td></tr>
+<tr><td>PDU</td><td>16</td><td>5 requests</td><td><strong>2 requests</strong></td></tr>
+</tbody>
+</table>
+</div>
+
+<h2>How a control action lands</h2>
+<ol class="stages">
+<li><b>Browser → :8090</b><span>Slider posts <code>{"cpu":1.0,"gpu":1.0}</code> to the control API. Nothing is written to the dashboard.</span></li>
+<li><b>Simulator state changes</b><span>The override enters <code>current_load()</code>, which the run loop feeds to <code>step()</code> on the next tick.</span></li>
+<li><b>Physics runs</b><span>Utilization → power → heat → coolant and air loops → temperatures. Thermal mass makes this take minutes, not milliseconds.</span></li>
+<li><b>Registers re-encode</b><span>Every point is projected from live state and encoded through the register map after each step.</span></li>
+<li><b>Collector discovers it</b><span>The next poll reads the changed registers over Modbus TCP and decodes them, rejecting anything outside its declared range.</span></li>
+<li><b>Dashboard updates</b><span>The hub aggregates, the WebSocket pushes, the rack tile changes color — 1–3 seconds after the click, and minutes before the temperature finishes moving.</span></li>
+</ol>
+
+<h2>Build status</h2>
+<div class="col">
+<p>Phase 1 is complete and verified end to end. Phase 2 — six weeks of generated history,
+TimescaleDB, MQTT, the workload scheduler and anomaly detection — is specified but not
+started.</p>
+</div>
+<ul class="status">
+<li class="on">register maps · 84 points</li>
+<li class="on">simulation engine</li>
+<li class="on">Modbus TCP + FC 0x2B</li>
+<li class="on">device identity</li>
+<li class="on">collector</li>
+<li class="on">dashboard + control</li>
+<li class="on">179 tests</li>
+<li class="on">CI + smoke</li>
+<li class="on">Docker Compose</li>
+<li class="off">TimescaleDB</li>
+<li class="off">6-week history</li>
+<li class="off">MQTT</li>
+<li class="off">workload scheduler</li>
+<li class="off">anomaly detection</li>
+</ul>
+
+<div class="col">
+<h3>Attribution</h3>
+<p style="font-size:13.5px">Clean-room simulator. Not affiliated with, endorsed by,
+or derived from any vendor's products or documentation. Every Modbus register address
+here is invented for the simulation and verified against no vendor specification; the
+parameter set reflects quantities in-row coolers and coolant distribution units
+genuinely report. Swapping in a real product's register map means replacing
+<code>sim/registers/*.yaml</code> and nothing else.</p>
+</div>
+</div>

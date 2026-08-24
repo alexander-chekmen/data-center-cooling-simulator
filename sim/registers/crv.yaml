@@ -1,0 +1,386 @@
+# ThermalEdge - in-row cooling unit register map
+#
+# ATTRIBUTION - READ THIS BEFORE CITING ANY ADDRESS BELOW.
+#
+# Every address in this file is INVENTED for this project. None of it has been
+# verified against Vertiv's published protocol documentation, and it should not
+# be represented as matching any real product.
+#
+# Vertiv does publish real register maps - the Liebert IntelliSlot Modbus and
+# BACnet Protocols Reference Guide (SL-28170) covers the Liebert CRV among other
+# products. That document uses a different and much higher address range than
+# this file: for Liebert precision-cooling units, return and supply air
+# temperature appear around 30743/30744, not 30036/30042.
+#
+# The parameter SET modeled here (operating state, teamwork status, phase
+# voltages, return/supply air temperature, humidity, remote sensors, compressor
+# data, filter hours) reflects quantities in-row cooling units genuinely report.
+# The addresses are this project's own. Treat this as a clean-room simulator of
+# a plausible in-row cooler, not as an emulation of a specific product.
+#
+# ADDRESSING: `modicon` is 3xxxx notation; `offset` is the zero-based address
+# passed to the Modbus client. offset == modicon - 30001 for the input space.
+
+device_type: CRV
+description: In-row air cooling unit
+register_space: input          # Modbus function code 0x04
+address_base: 30001
+
+points:
+  # ---- status -------------------------------------------------------------
+  - key: operating_state
+    modicon: 30001
+    offset: 0
+    type: uint16
+    kind: enum
+    enum: { 0: STOPPED, 1: STARTING, 2: RUNNING, 3: FAULT }
+    poll_class: status
+    source: inferred
+
+  - key: teamwork_status
+    modicon: 30002
+    offset: 1
+    type: uint16
+    kind: enum
+    enum: { 0: STANDALONE, 1: TEAMWORK, 2: STANDBY }
+    poll_class: status
+    source: inferred
+
+  - key: fan_control_mode
+    modicon: 30003
+    offset: 2
+    type: uint16
+    kind: enum
+    enum: { 0: MANUAL, 1: AUTO, 2: PROPORTIONAL }
+    poll_class: status
+    source: inferred
+
+  - key: compressor_control_mode
+    modicon: 30004
+    offset: 3
+    type: uint16
+    kind: enum
+    enum: { 0: "OFF", 1: "AUTO", 2: "MANUAL" }
+    poll_class: status
+    source: inferred
+
+  # ---- electrical ---------------------------------------------------------
+  - key: phase_a_voltage
+    modicon: 30021
+    offset: 20
+    type: uint16
+    scale: 1
+    unit: V
+    range: [0.0, 600.0]
+    poll_class: power
+    source: inferred
+
+  - key: phase_b_voltage
+    modicon: 30022
+    offset: 21
+    type: uint16
+    scale: 1
+    unit: V
+    range: [0.0, 600.0]
+    poll_class: power
+    source: inferred
+
+  - key: phase_c_voltage
+    modicon: 30023
+    offset: 22
+    type: uint16
+    scale: 1
+    unit: V
+    range: [0.0, 600.0]
+    poll_class: power
+    source: inferred
+
+  - key: frequency
+    modicon: 30024
+    offset: 23
+    type: uint16
+    scale: 10
+    unit: Hz
+    range: [0.0, 70.0]
+    poll_class: power
+    source: inferred
+
+  # ---- air path -----------------------------------------------------------
+  - key: return_air_temp
+    modicon: 30036
+    offset: 35
+    type: int16
+    scale: 10
+    unit: degC
+    range: [-20.0, 80.0]
+    poll_class: critical
+    source: inferred
+
+  - key: return_humidity
+    modicon: 30039
+    offset: 38
+    type: uint16
+    scale: 10
+    unit: pctRH
+    range: [0.0, 100.0]
+    poll_class: critical
+    source: inferred
+
+  - key: supply_air_temp
+    modicon: 30042
+    offset: 41
+    type: int16
+    scale: 10
+    unit: degC
+    range: [-20.0, 80.0]
+    poll_class: critical
+    source: inferred
+
+  - key: supply_air_temp_2
+    modicon: 30043
+    offset: 42
+    type: int16
+    scale: 10
+    unit: degC
+    range: [-20.0, 80.0]
+    poll_class: critical
+    source: inferred
+
+  # ---- remote (rack inlet) sensors ---------------------------------------
+  - key: remote_temp_1
+    modicon: 30048
+    offset: 47
+    type: int16
+    scale: 10
+    unit: degC
+    range: [-20.0, 80.0]
+    poll_class: critical
+    source: inferred
+
+  - key: remote_temp_2
+    modicon: 30049
+    offset: 48
+    type: int16
+    scale: 10
+    unit: degC
+    range: [-20.0, 80.0]
+    poll_class: critical
+    source: inferred
+
+  - key: remote_temp_3
+    modicon: 30050
+    offset: 49
+    type: int16
+    scale: 10
+    unit: degC
+    range: [-20.0, 80.0]
+    poll_class: critical
+    source: inferred
+
+  - key: remote_temp_4
+    modicon: 30051
+    offset: 50
+    type: int16
+    scale: 10
+    unit: degC
+    range: [-20.0, 80.0]
+    poll_class: critical
+    source: inferred
+
+  - key: remote_temp_5
+    modicon: 30052
+    offset: 51
+    type: int16
+    scale: 10
+    unit: degC
+    range: [-20.0, 80.0]
+    poll_class: critical
+    source: inferred
+
+  # ---- fan / capacity (inferred placements) ------------------------------
+  - key: fan_speed
+    modicon: 30060
+    offset: 59
+    type: uint16
+    scale: 10
+    unit: pct
+    range: [0.0, 100.0]
+    poll_class: status
+    source: inferred
+
+  - key: cooling_capacity
+    modicon: 30061
+    offset: 60
+    type: uint16
+    scale: 10
+    unit: pct
+    range: [0.0, 100.0]
+    poll_class: power
+    source: inferred
+
+  - key: cooling_output
+    modicon: 30062
+    offset: 61
+    type: uint16
+    scale: 10
+    unit: kW
+    range: [0.0, 500.0]
+    poll_class: power
+    source: inferred
+
+  # ---- compressor (inferred placements) ----------------------------------
+  - key: comp_high_pressure
+    modicon: 30070
+    offset: 69
+    type: uint16
+    scale: 100
+    unit: bar
+    range: [0.0, 50.0]
+    poll_class: flow
+    source: inferred
+
+  - key: comp_low_pressure
+    modicon: 30071
+    offset: 70
+    type: uint16
+    scale: 100
+    unit: bar
+    range: [0.0, 50.0]
+    poll_class: flow
+    source: inferred
+
+  - key: comp_discharge_temp
+    modicon: 30072
+    offset: 71
+    type: int16
+    scale: 10
+    unit: degC
+    range: [-20.0, 150.0]
+    poll_class: flow
+    source: inferred
+
+  - key: comp_suction_temp
+    modicon: 30073
+    offset: 72
+    type: int16
+    scale: 10
+    unit: degC
+    range: [-40.0, 100.0]
+    poll_class: flow
+    source: inferred
+
+  - key: comp_discharge_superheat
+    modicon: 30074
+    offset: 73
+    type: int16
+    scale: 10
+    unit: K
+    range: [-20.0, 80.0]
+    poll_class: flow
+    source: inferred
+
+  - key: comp_suction_superheat
+    modicon: 30075
+    offset: 74
+    type: int16
+    scale: 10
+    unit: K
+    range: [-20.0, 80.0]
+    poll_class: flow
+    source: inferred
+
+  # ---- maintenance counters (32-bit, two registers) ----------------------
+  - key: filter_hours
+    modicon: 30080
+    offset: 79
+    type: uint32
+    scale: 1
+    unit: h
+    range: [0.0, 200000.0]
+    poll_class: maintenance
+    source: inferred
+
+  - key: run_hours
+    modicon: 30082
+    offset: 81
+    type: uint32
+    scale: 1
+    unit: h
+    range: [0.0, 200000.0]
+    poll_class: maintenance
+    source: inferred
+
+  - key: alarm_word
+    modicon: 30090
+    offset: 89
+    type: uint16
+    kind: bitfield
+    bits:
+      0: HIGH_RETURN_TEMP
+      1: HIGH_SUPPLY_TEMP
+      2: LOW_AIRFLOW
+      3: FILTER_SERVICE_DUE
+      4: COMPRESSOR_FAULT
+      5: SENSOR_FAULT
+    poll_class: status
+    source: inferred
+
+  # ---- device identity (inferred placements) ------------------------------
+  # Also exposed via Modbus function code 0x2B / MEI type 14 (Read Device
+  # Identification), which is the standard mechanism; these registers are the
+  # vendor-specific mechanism. Both are common in the field.
+  - key: device_model
+    modicon: 30100
+    offset: 99
+    type: string
+    chars: 16
+    kind: identity
+    poll_class: config
+    source: inferred
+
+  - key: serial_number
+    modicon: 30108
+    offset: 107
+    type: string
+    chars: 20
+    kind: identity
+    poll_class: config
+    source: inferred
+
+  - key: firmware_version
+    modicon: 30118
+    offset: 117
+    type: string
+    chars: 8
+    kind: identity
+    poll_class: config
+    source: inferred
+
+  - key: hardware_revision
+    modicon: 30122
+    offset: 121
+    type: uint16
+    scale: 1
+    unit: rev
+    range: [0.0, 100.0]
+    poll_class: config
+    source: inferred
+
+  - key: teamwork_group
+    modicon: 30123
+    offset: 122
+    type: uint16
+    scale: 1
+    unit: id
+    range: [0.0, 100.0]
+    poll_class: config
+    source: inferred
+
+  - key: teamwork_role
+    modicon: 30124
+    offset: 123
+    type: uint16
+    kind: enum
+    enum: { 0: MEMBER, 1: LEAD }
+    poll_class: config
+    source: inferred
