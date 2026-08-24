@@ -1,4 +1,4 @@
-# ThermalEdge
+# Data Center Cooling Simulator DEMO
 
 **A clean-room data-center thermal management simulator.** Not affiliated with,
 endorsed by, or derived from any vendor's products or documentation.
